@@ -422,9 +422,31 @@ public:
 	/// Draw filled gray rectangle on give point with given size.
 	inline void drawGrayFill(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
 	{
-		for (uint8_t i = y; i < y + h; i++) {
-			drawHorizontalLine(x, i, w, (i % 2 == 0) ? 0b01010101 : 0b10101010);
+		static const uint8_t PROGMEM pattern[] = {
+			0b1,
+			0b01010101,
+			0b10101010,
+		};
+		drawPatternFill(x, y, w, h, pattern);
+	}
+
+	/// Draw custom pattern filling rectangle from given point with given size.
+	/// Pattern should be provided as pointer to PROGMEM array of bytes, where 
+	/// first value have value of `number of rows - 1`, followed by next rows 
+	/// bytes. Pattern width is 8 bits, number of rows must be power of two.
+	/// See `example/nice_custom_fill_patterns.hpp` for details and examples.
+	void drawPatternFill(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h, const uint8_t* pattern)
+	{
+		const uint8_t mask = pgm_read_byte(pattern + 0);
+		const uint8_t limit = y + h; 
+		uint8_t i = y;
+		uint8_t p;
+		do {
+			p = pgm_read_byte(pattern + (i & mask) + 1);
+			drawHorizontalLine(x, i, w, p);
+			i += 1;
 		}
+		while (i < limit);
 	}
 
 	// TODO: draw<*>Fill could be optimized - do mask calculation only once, instead per line.

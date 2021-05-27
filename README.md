@@ -46,6 +46,7 @@ If you are using only one display, chip select pin can be usually connected to g
     + fast bulk (blocks) writing/reading,
     + single bit setting/clearing,
     + drawing lines and basic figures,
+    + simple patterns fill drawing,
 
 Todo:
 
@@ -54,7 +55,6 @@ Todo:
     - drawing fonts (font converter with few example fonts included),
     - horizontal font drawing,
     - graphics bitmap drawing,
-    - patterns drawing,
 - minimalistic example,
 - link to where buy the display,
 - image of real life connections for main example,

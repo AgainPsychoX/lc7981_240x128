@@ -5,6 +5,7 @@
 */
 
 #include <lc7981_240x128.hpp>
+#include "nice_custom_fill_patterns.hpp"
 
 // Prepare display object using `DisplayByPins` (compile-time pin definition)
 LC7981_240x128::DisplayByPins<
@@ -265,6 +266,74 @@ void loop()
 						display.drawBlackLine(w, h, constrain(x, 0, 240 - 1), 0);
 					}
 				}
+				break;
+			}
+			// Multiple filling patterns, not much value appart of testing 
+			// how nice they look. Random generated gradient included for fun.
+			case '#': {
+				using namespace LC7981_240x128::NiceCustomFillPatterns;
+				
+				// Manual smooth white to gray gradient
+				display.drawPatternFill(0,   0, 15, 40, grayscale_1);
+				display.drawPatternFill(15,  0, 15, 40, grayscale_2);
+				display.drawPatternFill(30,  0, 15, 40, grayscale_3);
+				display.drawPatternFill(45,  0, 15, 40, grayscale_4);
+				display.drawPatternFill(60,  0, 15, 40, grayscale_5);
+				display.drawPatternFill(75,  0, 15, 40, grayscale_6);
+				display.drawPatternFill(90,  0, 15, 40, grayscale_7);
+				display.drawPatternFill(105, 0, 15, 40, grayscale_8);
+				display.drawPatternFill(120, 0, 15, 40, grayscale_9);
+				display.drawPatternFill(135, 0, 15, 40, grayscale_10);
+				display.drawPatternFill(150, 0, 15, 40, grayscale_11);
+				display.drawPatternFill(165, 0, 15, 40, grayscale_12);
+				display.drawPatternFill(180, 0, 15, 40, grayscale_13);
+				display.drawPatternFill(195, 0, 15, 40, grayscale_14);
+				display.drawPatternFill(210, 0, 15, 40, grayscale_15);
+				display.drawPatternFill(225, 0, 15, 40, grayscale_16);
+
+				// Randomly white to gray generated gradient
+				display.setCursorAddress(240 / 8 * 40);
+				display.writeStart();
+				for (uint8_t y = 0; y < 20; y += 1) {
+					for (uint8_t x = 8; x < 248; x += 8) {
+						uint16_t a;
+						uint8_t c = 0;
+						a = random();
+						c |= ((((a >> 0) & 0xff) < x) << 7) |
+							 ((((a >> 8) & 0xff) < x) << 6);
+						a = random();
+						c |= ((((a >> 0) & 0xff) < x) << 5) |
+							 ((((a >> 8) & 0xff) < x) << 4);
+						a = random();
+						c |= ((((a >> 0) & 0xff) < x) << 3) |
+							 ((((a >> 8) & 0xff) < x) << 2);
+						a = random();
+						c |= ((((a >> 0) & 0xff) < x) << 1) |
+							 ((((a >> 8) & 0xff) < x) << 0);
+						display.writeNextByte(c);
+					}
+				}
+
+				// Lines patterns
+				display.drawPatternFill(0,   60, 15, 20, lines_horizontally);
+				display.drawPatternFill(15,  60, 15, 20, lines_vertically);
+				display.drawPatternFill(30,  60, 15, 20, lines_horizontally_thick);
+				display.drawPatternFill(45,  60, 15, 20, lines_vertically_thick);
+				display.drawPatternFill(60,  60, 15, 20, lines_left);
+				display.drawPatternFill(75,  60, 15, 20, lines_right);
+				display.drawPatternFill(90,  60, 15, 20, gray_wide);
+				display.drawPatternFill(105, 60, 15, 20, gray_tall);
+
+				// Waves patterns
+				display.drawPatternFill(120, 60, 15, 20, waves_horizontally);
+				display.drawPatternFill(135, 60, 15, 20, waves_vertically);
+				display.drawPatternFill(150, 60, 15, 20, waves_horizontally_thick);
+				display.drawPatternFill(165, 60, 15, 20, waves_vertically_thick);
+				display.drawPatternFill(180, 60, 15, 20, waves_left);
+				display.drawPatternFill(195, 60, 15, 20, waves_right);
+				display.drawPatternFill(210, 60, 15, 20, waves_left_dense);
+				display.drawPatternFill(225, 60, 15, 20, waves_right_dense);
+
 				break;
 			}
 			// Small benchmark: Clear and draw whole screen 10 times
