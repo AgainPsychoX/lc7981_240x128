@@ -326,7 +326,6 @@ public:
 			}
 
 			int16_t err = dx - dy;
-			
 			while (true) {
 				setPixel(x0, y0, black);
 				if (x0 == x1 && y0 == y1) {
@@ -389,7 +388,7 @@ public:
 
 	/* Basic shapes */
 	/// Draw black rectangle on give point with given size.
-	inline void drawBlackRectangle(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
+	void drawBlackRectangle(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
 	{
 		drawBlackHorizontalLine(x, y, w);
 		drawBlackHorizontalLine(x, y + h - 1, w);
@@ -397,7 +396,7 @@ public:
 		drawBlackVerticalLine(x + w - 1, y + 1, h - 2);
 	}
 	/// Draw white rectangle on give point with given size.
-	inline void drawWhiteRectangle(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
+	void drawWhiteRectangle(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
 	{
 		drawWhiteHorizontalLine(x, y, w);
 		drawWhiteHorizontalLine(x, y + h - 1, w);
