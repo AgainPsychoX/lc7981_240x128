@@ -4,8 +4,11 @@
 	to use basic methods or run some tests. For syntax look in the code below.
 */
 
+// #define FONT_ANY_8X16 // allows for some optimizations specific to 8x16 fonts
 #include <lc7981_240x128.hpp>
 #include "nice_custom_fill_patterns.hpp"
+#include "font_08x16_leggibile.hpp"
+#include "font_06x08_Terminal_Microsoft.hpp"
 
 // Prepare display object using `DisplayByPins` (compile-time pin definition)
 LC7981_240x128::DisplayByPins<
@@ -18,6 +21,9 @@ LC7981_240x128::DisplayByPins<
 // Prepare display object using example fast I/O specialization (see README).
 // #include "lc7981_240x128_fastio_example.hpp"
 // MyDisplay display;
+
+// #define DEFAULT_FONT font_08x16_leggibile
+#define DEFAULT_FONT font_06x08_Terminal_Microsoft
 
 // Display is easy to setup
 void setup()
@@ -187,6 +193,28 @@ void loop()
 				}
 				break;
 			}
+			// Text
+			case 't': {
+				uint8_t x = Serial.parseInt();
+				uint8_t y = Serial.parseInt();
+				char buffer[40 + 1];
+				uint8_t w = 0;
+				while (w < 40) {
+					uint8_t c = forceSerialPeek();
+					if (c == '\n' || c == ';') {
+						break;
+					}
+					Serial.read();
+					if (c == ' ' && w == 0) {
+						continue;
+					}
+					buffer[w] = c;
+					w += 1;
+				}
+				buffer[w] = '\0';
+				display.drawTextVertical(x, y, buffer, DEFAULT_FONT);
+				break;
+			}
 
 			/* TESTS */
 			// Pyramid using horizontal lines. Tests whenever horizontal line
@@ -268,7 +296,17 @@ void loop()
 				}
 				break;
 			}
-			// Multiple filling patterns, not much value appart of testing 
+			// Text related tests
+			case 'T': {
+				const char* text = "LC7981";
+				const uint8_t h = reinterpret_cast<const LC7981_240x128::font_header_t*>(DEFAULT_FONT)->height;
+				for (uint8_t x = 0, y = 0; y < 128; x += 1, y += h) {
+					display.drawTextVertical(0, y, String(x).c_str(), DEFAULT_FONT);
+					display.drawTextVertical(x + 16, y, text, DEFAULT_FONT);
+				}
+				break;
+			}
+			// Multiple filling patterns, not much value apart of testing 
 			// how nice they look. Random generated gradient included for fun.
 			case '#': {
 				using namespace LC7981_240x128::NiceCustomFillPatterns;

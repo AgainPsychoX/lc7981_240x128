@@ -5,12 +5,15 @@
 namespace LC7981_240x128
 {
 
+struct font_header_t {
+	uint8_t width;
+	uint8_t height;
+};
+
 enum register_t {
 	Data = 0,	// RS = LOW
 	Command = 1	// RS = HIGH 
 };
-
-
 
 /// Display class base. The other class should be extend it providing basic IO.
 class DisplayBase
@@ -387,6 +390,7 @@ public:
 
 
 	/* Basic shapes */
+public:
 	/// Draw black rectangle on give point with given size.
 	void drawBlackRectangle(const uint8_t x, const uint8_t y, const uint8_t w, const uint8_t h)
 	{
@@ -449,6 +453,235 @@ public:
 	}
 
 	// TODO: draw<*>Fill could be optimized - do mask calculation only once, instead per line.
+
+
+
+
+	/* Text */
+public:
+#ifdef FONT_ANY_8X16
+	/// Draw text vertically using selected font, assuming font is 8x16 (special fast case)
+	void drawTextVertical_8x16(const uint8_t x, uint8_t y, const char* string, const void* font) {
+		if (!*string) return;
+		const font_header_t* fontHeader = static_cast<const font_header_t*>(font);
+		const uint8_t* fontData = static_cast<const uint8_t*>(font + sizeof(font_header_t));
+		const uint8_t p = x % 8; // bitsOffset
+		if (p != 0) {
+			const char* pointer;
+			for (uint8_t i = 0; i < 16; i++) {
+				pointer = string;
+
+				// First block
+				uint8_t mask = 0b11111111 << p;
+				setCursorAddress(240 / 8 * y + x / 8);
+				uint8_t current = readSingleByte();
+				uint8_t prev = pgm_read_byte(fontData + (*pointer - ' ') * 16 + i);
+				pointer += 1;
+				setCursorAddress(240 / 8 * y + x / 8);
+				writeStart();
+				// p == 3, prev == hgfedcba : (prev << p) == edcba???
+				writeNextByte((current & ~mask) | (prev << p));
+
+				// Middle blocks
+				while (*pointer) {
+					uint8_t next = pgm_read_byte(fontData + (*pointer - ' ') * 16 + i);
+					pointer += 1;
+					// p == 3, prev == hgfedcba, next == HGFEDCBA : (prev >> (8 - p)) == ?????hgf, (next << p) == EDCBA???
+					writeNextByte((prev >> (8 - p)) | (next << p));
+					prev = next;
+				}
+
+				// Last block
+				current = readSingleByte();
+				setCursorAddress(240 / 8 * y + x / 8 + static_cast<size_t>(pointer - string));
+				writeStart();
+				writeNextByte((prev >> (8 - p)) | (current & mask));
+
+				y += 1;
+			}
+		}
+		else {
+			const char* pointer;
+			for (uint8_t i = 0; i < 16; i++) {
+				pointer = string;
+				setCursorAddress(240 / 8 * y + x / 8);
+				writeStart();
+				while (*pointer) {
+					writeNextByte(pgm_read_byte(fontData + (*pointer - ' ') * 16 + i));
+					pointer += 1;
+				}
+				y += 1;
+			}
+		}
+	}
+#endif
+
+	/// Draw text vertically using selected font, assuming font width is 8 bits or narrower.
+	/// Font chars rows bits are required to be padded with zeros while narrower than 8 bits.
+	void drawTextVertical_narrow(const uint8_t x, uint8_t y, const char* string, const void* font) {
+		const auto fontWidth  = static_cast<const font_header_t*>(font)->width;
+		const auto fontHeight = static_cast<const font_header_t*>(font)->height;
+		const uint8_t* fontData = static_cast<const uint8_t*>(font + sizeof(font_header_t));
+		const uint8_t fontRowBytes = fontHeight;
+		const uint8_t bitsOffset = x % 8;
+		const char* pointer;
+		for (uint8_t r = 0; r < fontHeight; r++) {
+			pointer = string;
+
+			uint8_t bitsPending = 0;
+			uint8_t nextByte = 0;
+
+			// Read background for first block if not aligned start
+			if (bitsOffset) {
+				setCursorAddress(240 / 8 * y + x / 8);
+				nextByte = (readSingleByte() & ~(0b11111111 << bitsOffset));
+				bitsPending = bitsOffset;
+			}
+
+			// Process the blocks
+			setCursorAddress(240 / 8 * y + x / 8);
+			writeStart();
+			while (*pointer) {
+				const uint8_t data = pgm_read_byte(fontData + (*pointer - ' ') * fontRowBytes + r); // & mask
+
+				nextByte |= data << bitsPending;
+				bitsPending += fontWidth;
+
+				if (bitsPending >= 8) {
+					writeNextByte(nextByte);
+					bitsPending -= 8;
+					nextByte = data >> (fontWidth - bitsPending);
+				}
+
+				pointer += 1;
+			}
+
+			// Write last block, with background, if not aligned end
+			if (bitsPending > 0) {
+				nextByte |= readSingleByte() & (0b11111111 << bitsPending);
+				setCursorAddress(240 / 8 * y + x / 8 + (static_cast<size_t>(pointer - string) * fontWidth + bitsOffset) / 8);
+				writeStart();
+				writeNextByte(nextByte);
+			}
+
+			y += 1;
+		}
+	}
+
+	/// Draw text vertically using selected font, assuming font width is above 8 bits.
+	/// Font chars rows bits should be connected (not padded).
+	void drawTextVertical_wide(const uint8_t x, uint8_t y, const char* string, const void* font) {
+		const auto fontWidth  = static_cast<const font_header_t*>(font)->width;
+		const auto fontHeight = static_cast<const font_header_t*>(font)->height;
+		const uint8_t* fontData = static_cast<const uint8_t*>(font + sizeof(font_header_t));
+		const uint8_t fontRowBytes = (fontWidth * fontHeight) / 8 + (((fontWidth * fontHeight) % 8 == 0) ? 0 : 1);
+		const uint8_t bitsOffset = x % 8;
+		const char* pointer;
+		for (uint8_t r = 0; r < fontHeight; r++) {
+			pointer = string;
+
+			uint8_t bitsWritten = 0;
+			uint8_t nextByte = 0;
+
+			// First block
+			if (bitsOffset) {
+				setCursorAddress(240 / 8 * y + x / 8);
+				nextByte = (readSingleByte() & ~(0b11111111 << bitsOffset));
+				bitsWritten = bitsOffset;
+			}
+
+			const uint8_t charRowOffsetByte = r * fontWidth / 8;
+			const uint8_t charRowOffsetBits = r * fontWidth % 8;
+			
+			// Middle blocks
+			setCursorAddress(240 / 8 * y + x / 8);
+			writeStart();
+			while (*pointer) {
+				uint8_t remainingWidth = fontWidth;
+				const uint8_t* charAddress = fontData + (*pointer - ' ') * fontRowBytes;
+				const uint8_t* charRowAddress = charAddress + charRowOffsetByte;
+
+				// TODO: use lambda to reduce program size a bit?
+
+				// Remaining bits of byte
+				if (charRowOffsetBits) {
+					const uint8_t length = 8 - charRowOffsetBits;
+					const uint8_t data = pgm_read_byte(charRowAddress) >> charRowOffsetBits;
+
+					nextByte |= data << data;
+					bitsWritten += length;
+					remainingWidth -= length;
+
+					if (bitsWritten >= 8) {
+						writeNextByte(nextByte);
+						bitsWritten -= 8;
+						nextByte = data >> (length - bitsWritten);
+					}
+				}
+
+				uint8_t byteOffset = 1;
+
+				// Full bytes
+				while (remainingWidth > 8) {
+					const uint8_t data = pgm_read_byte(charRowAddress + byteOffset);
+
+					nextByte |= data << bitsWritten;
+					bitsWritten += remainingWidth;
+
+					if (bitsWritten >= 8) {
+						writeNextByte(nextByte);
+						bitsWritten -= 8;
+						nextByte = data >> (remainingWidth - bitsWritten);
+					}
+
+					byteOffset += 1;
+				}
+
+				// Last bits
+				{
+					const uint8_t data = pgm_read_byte(charRowAddress + byteOffset) & ~(0b11111111 << remainingWidth);
+
+					nextByte |= data << bitsWritten;
+					bitsWritten += remainingWidth;
+
+					if (bitsWritten >= 8) {
+						writeNextByte(nextByte);
+						bitsWritten -= 8;
+						nextByte = data >> (remainingWidth - bitsWritten);
+					}
+				}
+
+				pointer += 1;
+			}
+
+			// Last block
+			if (bitsWritten > 0) {
+				nextByte |= (readSingleByte() & (0b11111111 << bitsWritten));
+				setCursorAddress(240 / 8 * y + x / 8 + (static_cast<size_t>(pointer - string) * fontWidth + bitsOffset) / 8);
+				writeStart();
+				writeNextByte(nextByte);
+			}
+
+			y += 1;
+		}
+	}
+
+	/// Draw text vertically using selected font
+	void drawTextVertical(const uint8_t x, const uint8_t y, const char* string, const void* font) {
+		const auto fontWidth  = static_cast<const font_header_t*>(font)->width;
+		const auto fontHeight = static_cast<const font_header_t*>(font)->height;
+#ifdef FONT_ANY_8X16
+		if (fontWidth == 8 && fontHeight == 16) {
+			return drawTextVertical_8x16(x, y, string, font);
+		}
+#endif
+		if (fontWidth <= 8) {
+			return drawTextVertical_narrow(x, y, string, font);
+		}
+		else {
+			return drawTextVertical_wide(x, y, string, font);
+		}
+	}
 };
 
 
