@@ -5,14 +5,14 @@
 */
 
 // #define FONT_ANY_8X16 // allows for some optimizations specific to 8x16 fonts
-#include <lc7981_240x128.hpp>
+#include <lc7981.hpp>
 #include "nice_custom_fill_patterns.hpp"
 #include "font_08x16_leggibile.hpp"
 #include "font_06x08_Terminal_Microsoft.hpp"
 #include "font_12x16_Terminal_Microsoft.hpp"
 
 // Prepare display object using `DisplayByPins` (compile-time pin definition)
-LC7981_240x128::DisplayByPins<
+LC7981::DisplayByPins<
 	// EN / CS / DI / RW
 	22,  23,  20,  21,
 	// DB0 to DB7
@@ -20,12 +20,12 @@ LC7981_240x128::DisplayByPins<
 > display;
 
 // Prepare display object using example fast I/O specialization (see README).
-// #include "lc7981_240x128_fastio_example.hpp"
+// #include "fastio_example.hpp"
 // MyDisplay display;
 
 // #define DEFAULT_FONT font_08x16_leggibile
-// #define DEFAULT_FONT font_06x08_Terminal_Microsoft
-#define DEFAULT_FONT font_12x16_Terminal_Microsoft
+#define DEFAULT_FONT font_06x08_Terminal_Microsoft
+// #define DEFAULT_FONT font_12x16_Terminal_Microsoft
 
 // Display is easy to setup
 void setup()
@@ -301,7 +301,7 @@ void loop()
 			// Text related tests
 			case 'T': {
 				const char* text = "LC7981";
-				const uint8_t h = reinterpret_cast<const LC7981_240x128::font_header_t*>(DEFAULT_FONT)->height;
+				const uint8_t h = reinterpret_cast<const LC7981::font_header_t*>(DEFAULT_FONT)->height;
 				for (uint8_t x = 0, y = 0; y < 128; x += 1, y += h) {
 					display.drawTextVertical(0, y, String(x).c_str(), DEFAULT_FONT);
 					display.drawTextVertical(x + 16, y, text, DEFAULT_FONT);
@@ -311,7 +311,7 @@ void loop()
 			// Multiple filling patterns, not much value apart of testing 
 			// how nice they look. Random generated gradient included for fun.
 			case '#': {
-				using namespace LC7981_240x128::NiceCustomFillPatterns;
+				using namespace LC7981::NiceCustomFillPatterns;
 				
 				// Manual smooth white to gray gradient
 				display.drawPatternFill(0,   0, 15, 40, grayscale_1);

@@ -17,7 +17,7 @@ Library aim to allow easy and efficient control over LC7981-based EW24D40 (or si
 
 ### Alternative library
 
-There already exist library for this controller/display, [u8glib](https://github.com/olikraus/u8glib) or [u8g2](https://github.com/olikraus/,u8g2/), however, as those libraries support multiple other displays, they aren't fully optimized for handling this exact display - in result, they are using more memory (buffering image before putting on display) and processing power (small buffer require the drawing to be done 2-3 times on smaller Arduino). That was problem that forced me into developing other implementation myself.
+There already exist library for this controller/display, [u8glib](https://github.com/olikraus/u8glib) or [u8g2](https://github.com/olikraus/u8g2/), however, as those libraries support multiple other displays, they aren't fully optimized for handling this exact display - in result, they are using more memory (buffering image before putting on display) and processing power (small buffer require the drawing to be done 2-3 times on smaller Arduino). That was problem that forced me into developing other implementation myself.
 
 ### Display orientation, size and coords
 
@@ -27,11 +27,11 @@ In cases user try to draw on invalid coords (x > 239 or y > 127) the behavior is
 
 ### Namespace
 
-All code should be contained `LC7981_240x128` namespace and all defines should use `LC7981_240x128_` prefix, to avoid conflicts with other libraries and user code.
+All code should be contained `LC7981` namespace and all defines should use `LC7981` prefix, to avoid conflicts with other libraries and user code.
 
 ### Display base class and specializations
 
-Display management is divided into base display class, that use few virtual functions that divide I/O related code aside from providing actual features. This allow library users to define better I/O for their specific use. There is basic template (compile-time definable pins, to avoid memory usage) class `DisplayByPins` that provide a bit slow, but easy and compatible implementation for most Arduino. For more details see source code of `DisplayByPins` and example of specialization in [`example/`](example/) directory ([`lc7981_240x128_fastio_example.hpp`](example/lc7981_240x128_fastio_example.hpp)). In my example (described more in the file) it boost performance by over 4 times, so it's worth the hassle. When writing your own specialization for I/O, don't forget to use proper delays (90ns address/control setup, 140ns for reading, 220ns for writing - more details in datasheet).
+Display management is divided into base display class, that use few virtual functions that divide I/O related code aside from providing actual features. This allow library users to define better I/O for their specific use. There is basic template (compile-time definable pins, to avoid memory usage) class `DisplayByPins` that provide a bit slow, but easy and compatible implementation for most Arduino. For more details see source code of `DisplayByPins` and example of specialization in [`examples/`](examples/) directory ([`fastio_example.hpp`](examples/testing/fastio_example.hpp)). In my example (described more in the file) it boost performance by over 4 times, so it's worth the hassle. When writing your own specialization for I/O, don't forget to use proper delays (90ns address/control setup, 140ns for reading, 220ns for writing - more details in datasheet).
 
 ### Chip select
 
@@ -47,9 +47,11 @@ If you are using only one display, chip select pin can be usually connected to g
     + single bit setting/clearing,
     + drawing lines and basic figures,
     + simple patterns fill drawing,
+    + drawing vertical text with few fonts (converter script included),
 
 Todo:
 
+- fix problem with reading from the controller when using fast I/O example (my board specific)
 - character mode
 - graphical mode
     - drawing fonts (font converter with few example fonts included),

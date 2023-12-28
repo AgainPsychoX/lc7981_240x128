@@ -1,9 +1,9 @@
 // This file contains example set of nice patterns you can use with 
 // `drawPatternFill` function. By the way, you can ease access by adding
-// `using namespace LC7981_240x128::NiceCustomFillPatterns;` in block of code.
+// `using namespace LC7981::NiceCustomFillPatterns;` in block of code.
 // See full example source code for more details.
 
-namespace LC7981_240x128
+namespace LC7981
 {
 
 namespace NiceCustomFillPatterns

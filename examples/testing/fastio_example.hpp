@@ -1,4 +1,4 @@
-#include "lc7981_240x128.hpp"
+#include <lc7981.hpp>
 
 /// Specialized display class using hardcoded IO for certain board with certain
 /// core using certain pins, but avoiding slow functions like `pinMode`,
@@ -7,6 +7,7 @@
 /// This particular example work for:
 /// * Microcontroller: Atmega32, external 20Mhz
 /// * Arduino Core: MightyCore with standard pinout
+/// * Display: EW24D40 240x128 with LC7981 controller
 /// * Data pins: 
 /// 	+ DB0 to DB6 are 10, 11, 12, 13, 14, 15 (6 MSB of port D)
 /// 	+ DB7 and DB8 are 18, 19 (3rd and 4th bits of port C)
@@ -17,8 +18,11 @@
 /// Clear and draw whole screen 10 times benchmark:
 /// 	+ Took around 420558us instead of around 4450821us for `DisplayByPins`.
 /// 	+ Only 10th part of time! More around 4.3x faster!
-class MyDisplay : public LC7981_240x128::DisplayBase
+class MyDisplay : public LC7981::DisplayBase
 {
+public:
+	MyDisplay() : DisplayBase(240, 128) {}
+
 protected:
 	inline void setDataBusAsInput()
 	{
@@ -47,7 +51,7 @@ protected:
 		PORTC = ((value & 0b11000000) >> 4) | (PORTC & 0b11110011);
 	}
 
-	uint8_t read(const LC7981_240x128::register_t reg) override
+	uint8_t read(const LC7981::register_t reg) override
 	{
 		uint8_t oldSREG = SREG;
 		cli();
@@ -82,7 +86,7 @@ protected:
 		return out;
 	}
 
-	void write(const LC7981_240x128::register_t reg, const uint8_t value) override
+	void write(const LC7981::register_t reg, const uint8_t value) override
 	{
 		uint8_t oldSREG = SREG;
 		cli();

@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-namespace LC7981_240x128
+namespace LC7981
 {
 
 struct font_header_t {
@@ -50,6 +50,9 @@ protected:
 
 
 	/* Variables and flags */
+public:
+	const uint8_t width;
+	const uint8_t height;
 protected:
 	struct {
 		/// Flag to keep track of dummy read required for reading data after moving cursor.
@@ -60,6 +63,12 @@ protected:
 
 	/* Initializers */
 public:
+	/// Constructor
+	DisplayBase(uint8_t width, uint8_t height) 
+		: width(width), height(height)
+	{}
+	DisplayBase() : DisplayBase(240, 128) {}
+
 	/// Prepare display to use graphical mode.
 	void initGraphicMode()
 	{
@@ -74,9 +83,9 @@ public:
 		write<Command>(0b0001);
 		write<Data>(0b00000111);
 
-		// Set width of screen of 240
+		// Set width of the screen
 		write<Command>(0b0010);
-		write<Data>(240 / 8 - 1);
+		write<Data>(width / 8 - 1);
 
 		// Set display duty to max
 		write<Command>(0b0011);
@@ -179,8 +188,8 @@ public:
 	{
 		setCursorAddress(0);
 		writeStart();
-		for (uint8_t y = 0; y < 128; y++) {
-			for (uint8_t x = 0; x < 240; x += 8) {
+		for (uint8_t y = 0; y < height; y++) {
+			for (uint8_t x = 0; x < width; x += 8) {
 				writeNextByte(pattern);
 			}
 		}
@@ -200,11 +209,11 @@ public:
 	{
 		setCursorAddress(0);
 		writeStart();
-		for (uint8_t y = 0; y < 128; y += 2) {
-			for (uint8_t x = 0; x < 240; x += 8) {
+		for (uint8_t y = 0; y < height; y += 2) {
+			for (uint8_t x = 0; x < width; x += 8) {
 				writeNextByte(0b10101010);
 			}
-			for (uint8_t x = 0; x < 240; x += 8) {
+			for (uint8_t x = 0; x < width; x += 8) {
 				writeNextByte(0b01010101);
 			}
 		}
@@ -214,28 +223,28 @@ public:
 	/// For multiple bits you should more efficient methods than `setPixel` or `clearPixel`.
 	inline void setPixel(const uint8_t x, const uint8_t y)
 	{
-		setCursorAddress(240 / 8 * y + x / 8);
+		setCursorAddress(width / 8 * y + x / 8);
 		setDataBit(x % 8);
 	}
 	/// Clear single bit at given coordinates.
 	/// For multiple bits you should more efficient methods than `setPixel` or `clearPixel`.
 	inline void clearPixel(const uint8_t x, const uint8_t y)
 	{
-		setCursorAddress(240 / 8 * y + x / 8);
+		setCursorAddress(width / 8 * y + x / 8);
 		clearDataBit(x % 8);
 	}
 	/// Set or clear single bit at given coordinates depending on requested value.
 	/// For multiple bits you should more efficient methods than `setPixel` or `clearPixel`.
 	inline void setPixel(const uint8_t x, const uint8_t y, const bool black)
 	{
-		setCursorAddress(240 / 8 * y + x / 8);
+		setCursorAddress(width / 8 * y + x / 8);
 		setDataBit(x % 8, black);
 	}
 
 	/// Draw horizontal line from specified point of specified length using specified pattern.
 	void drawHorizontalLine(const uint8_t x, const uint8_t y, const uint8_t length, const uint8_t pattern)
 	{
-		setCursorAddress(240 / 8 * y + x / 8);
+		setCursorAddress(width / 8 * y + x / 8);
 		uint8_t remainingLength = length;
 		uint8_t p = x % 8;
 		if (p != 0) {
@@ -254,7 +263,7 @@ public:
 				mask <<= p;
 			}
 			uint8_t current = readSingleByte();
-			setCursorAddress(240 / 8 * y + x / 8);
+			setCursorAddress(width / 8 * y + x / 8);
 			writeStart();
 			writeNextByte((pattern & mask) | (current & ~mask));
 		}
@@ -273,7 +282,7 @@ public:
 				remainingLength -= 1;
 			}
 			uint8_t current = readSingleByte();
-			setCursorAddress(240 / 8 * y + (x + length) / 8);
+			setCursorAddress(width / 8 * y + (x + length) / 8);
 			writeSingleByte((pattern & mask) | (current & ~mask));
 		}
 	}
@@ -292,7 +301,7 @@ public:
 	void drawBlackVerticalLine(const uint8_t x, const uint8_t y, const uint8_t length)
 	{
 		for (uint8_t i = y; i < y + length; i++) {
-			setCursorAddress(240 / 8 * i + x / 8);
+			setCursorAddress(width / 8 * i + x / 8);
 			setDataBit(x % 8);
 		}
 	}
@@ -300,7 +309,7 @@ public:
 	void drawWhiteVerticalLine(const uint8_t x, const uint8_t y, const uint8_t length)
 	{
 		for (uint8_t i = y; i < y + length; i++) {
-			setCursorAddress(240 / 8 * i + x / 8);
+			setCursorAddress(width / 8 * i + x / 8);
 			clearDataBit(x % 8);
 		}
 	}
@@ -473,11 +482,11 @@ public:
 
 				// First block
 				uint8_t mask = 0b11111111 << p;
-				setCursorAddress(240 / 8 * y + x / 8);
+				setCursorAddress(width / 8 * y + x / 8);
 				uint8_t current = readSingleByte();
 				uint8_t prev = pgm_read_byte(fontData + (*pointer - ' ') * 16 + i);
 				pointer += 1;
-				setCursorAddress(240 / 8 * y + x / 8);
+				setCursorAddress(width / 8 * y + x / 8);
 				writeStart();
 				// p == 3, prev == hgfedcba : (prev << p) == edcba???
 				writeNextByte((current & ~mask) | (prev << p));
@@ -494,7 +503,7 @@ public:
 
 				// Last block
 				current = readSingleByte();
-				setCursorAddress(240 / 8 * y + x / 8 + static_cast<size_t>(pointer - string));
+				setCursorAddress(width / 8 * y + x / 8 + static_cast<size_t>(pointer - string));
 				writeStart();
 				writeNextByte((prev >> (8 - p)) | (current & mask));
 
@@ -505,7 +514,7 @@ public:
 			const char* pointer;
 			for (uint8_t i = 0; i < 16; i++) {
 				pointer = string;
-				setCursorAddress(240 / 8 * y + x / 8);
+				setCursorAddress(width / 8 * y + x / 8);
 				writeStart();
 				while (*pointer) {
 					writeNextByte(pgm_read_byte(fontData + (*pointer - ' ') * 16 + i));
@@ -534,13 +543,13 @@ public:
 
 			// Read background for first block if not aligned start
 			if (bitsOffset) {
-				setCursorAddress(240 / 8 * y + x / 8);
+				setCursorAddress(width / 8 * y + x / 8);
 				nextByte = (readSingleByte() & ~(0b11111111 << bitsOffset));
 				bitsPending = bitsOffset;
 			}
 
 			// Process next blocks
-			setCursorAddress(240 / 8 * y + x / 8);
+			setCursorAddress(width / 8 * y + x / 8);
 			writeStart();
 			while (*pointer) {
 				const uint8_t data = pgm_read_byte(fontData + (*pointer - ' ') * fontRowBytes + r); // & mask
@@ -561,7 +570,7 @@ public:
 			if (bitsPending > 0) {
 				nextByte |= readSingleByte() & (0b11111111 << bitsPending);
 				const uint8_t widthTotal = static_cast<size_t>(pointer - string) * fontWidth + bitsOffset;
-				setCursorAddress(240 / 8 * y + x / 8 + widthTotal / 8);
+				setCursorAddress(width / 8 * y + x / 8 + widthTotal / 8);
 				writeStart();
 				writeNextByte(nextByte);
 			}
@@ -587,7 +596,7 @@ public:
 
 			// Read background for first block if not aligned start
 			if (bitsOffset) {
-				setCursorAddress(240 / 8 * y + x / 8);
+				setCursorAddress(width / 8 * y + x / 8);
 				nextByte = (readSingleByte() & ~(0b11111111 << bitsOffset));
 				bitsPending = bitsOffset;
 			}
@@ -596,7 +605,7 @@ public:
 			const uint8_t rowOffsetBits = r * fontWidth % 8;
 
 			// Process next blocks
-			setCursorAddress(240 / 8 * y + x / 8);
+			setCursorAddress(width / 8 * y + x / 8);
 			writeStart();
 			while (*pointer) {
 				uint8_t remainingFontWidth = fontWidth;
@@ -660,7 +669,7 @@ public:
 			if (bitsPending > 0) {
 				nextByte |= readSingleByte() & (0b11111111 << bitsPending);
 				const uint8_t widthTotal = static_cast<size_t>(pointer - string) * fontWidth + bitsOffset;
-				setCursorAddress(240 / 8 * y + x / 8 + widthTotal / 8);
+				setCursorAddress(width / 8 * y + x / 8 + widthTotal / 8);
 				writeStart();
 				writeNextByte(nextByte);
 			}
@@ -695,14 +704,14 @@ public:
 /// don't want to use compile-time mappings inside main core in fear of 
 /// incompatibility to other 3rd party cores. 
 /// See https://github.com/arduino/ArduinoCore-avr/issues/264 (and related issues).
-/// See `lc7981_240x128_fastio_example.hpp` for example how to use faster IO.
+/// See `fastio_example.hpp` for example how to use faster IO.
 template <
 	// Enable: HIGH -> LOW enables
 	uint8_t EN,
 	// Chip select: LOW - selected. Can be set to `NOT_A_PIN` allow the code 
 	// to assume chip is always selected by connecting display CS pin to ground.
 	uint8_t CS,
-	// Register select: HIGH - intruction, LOW - data
+	// Register select: HIGH - instruction, LOW - data
 	uint8_t RS,
 	// Read/write: HIGH - read, LOW - write
 	uint8_t RW,
@@ -718,7 +727,7 @@ template <
 	// Allow code to keep (and assume) chip is always selected. If false,
 	// you can use the data pins between operations on display for other stuff,
 	// possibly also other display (that use only other control ports).
-	// Its true for default, as it allow to incrase code efficiency.
+	// Its true for default, as it allow to increase code efficiency.
 	bool chipAlwaysSelected = true
 >
 class DisplayByPins : public DisplayBase
