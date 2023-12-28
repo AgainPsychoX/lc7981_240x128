@@ -9,6 +9,7 @@
 #include "nice_custom_fill_patterns.hpp"
 #include "font_08x16_leggibile.hpp"
 #include "font_06x08_Terminal_Microsoft.hpp"
+#include "font_12x16_Terminal_Microsoft.hpp"
 
 // Prepare display object using `DisplayByPins` (compile-time pin definition)
 LC7981_240x128::DisplayByPins<
@@ -23,7 +24,8 @@ LC7981_240x128::DisplayByPins<
 // MyDisplay display;
 
 // #define DEFAULT_FONT font_08x16_leggibile
-#define DEFAULT_FONT font_06x08_Terminal_Microsoft
+// #define DEFAULT_FONT font_06x08_Terminal_Microsoft
+#define DEFAULT_FONT font_12x16_Terminal_Microsoft
 
 // Display is easy to setup
 void setup()

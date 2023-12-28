@@ -486,7 +486,8 @@ public:
 				while (*pointer) {
 					uint8_t next = pgm_read_byte(fontData + (*pointer - ' ') * 16 + i);
 					pointer += 1;
-					// p == 3, prev == hgfedcba, next == HGFEDCBA : (prev >> (8 - p)) == ?????hgf, (next << p) == EDCBA???
+					// if p == 3, prev == hgfedcba, next == HGFEDCBA :
+					//   (prev >> (8 - p)) == ?????hgf, (next << p) == EDCBA???
 					writeNextByte((prev >> (8 - p)) | (next << p));
 					prev = next;
 				}
@@ -528,8 +529,8 @@ public:
 		for (uint8_t r = 0; r < fontHeight; r++) {
 			pointer = string;
 
-			uint8_t bitsPending = 0;
-			uint8_t nextByte = 0;
+			uint8_t bitsPending = 0; // to be written
+			uint8_t nextByte = 0; // buffer for bits to be yet written
 
 			// Read background for first block if not aligned start
 			if (bitsOffset) {
@@ -538,7 +539,7 @@ public:
 				bitsPending = bitsOffset;
 			}
 
-			// Process the blocks
+			// Process next blocks
 			setCursorAddress(240 / 8 * y + x / 8);
 			writeStart();
 			while (*pointer) {
@@ -559,7 +560,8 @@ public:
 			// Write last block, with background, if not aligned end
 			if (bitsPending > 0) {
 				nextByte |= readSingleByte() & (0b11111111 << bitsPending);
-				setCursorAddress(240 / 8 * y + x / 8 + (static_cast<size_t>(pointer - string) * fontWidth + bitsOffset) / 8);
+				const uint8_t widthTotal = static_cast<size_t>(pointer - string) * fontWidth + bitsOffset;
+				setCursorAddress(240 / 8 * y + x / 8 + widthTotal / 8);
 				writeStart();
 				writeNextByte(nextByte);
 			}
@@ -569,95 +571,96 @@ public:
 	}
 
 	/// Draw text vertically using selected font, assuming font width is above 8 bits.
-	/// Font chars rows bits should be connected (not padded).
+	/// Font chars rows bits should be connected and padded only to avoid mixing characters.
 	void drawTextVertical_wide(const uint8_t x, uint8_t y, const char* string, const void* font) {
 		const auto fontWidth  = static_cast<const font_header_t*>(font)->width;
 		const auto fontHeight = static_cast<const font_header_t*>(font)->height;
 		const uint8_t* fontData = static_cast<const uint8_t*>(font + sizeof(font_header_t));
-		const uint8_t fontRowBytes = (fontWidth * fontHeight) / 8 + (((fontWidth * fontHeight) % 8 == 0) ? 0 : 1);
+		const uint8_t fontRowBytes = (fontWidth * fontHeight + 7) / 8;
 		const uint8_t bitsOffset = x % 8;
 		const char* pointer;
 		for (uint8_t r = 0; r < fontHeight; r++) {
 			pointer = string;
 
-			uint8_t bitsWritten = 0;
-			uint8_t nextByte = 0;
+			uint8_t bitsPending = 0; // to be written
+			uint8_t nextByte = 0; // buffer for bits to be yet written
 
-			// First block
+			// Read background for first block if not aligned start
 			if (bitsOffset) {
 				setCursorAddress(240 / 8 * y + x / 8);
 				nextByte = (readSingleByte() & ~(0b11111111 << bitsOffset));
-				bitsWritten = bitsOffset;
+				bitsPending = bitsOffset;
 			}
 
-			const uint8_t charRowOffsetByte = r * fontWidth / 8;
-			const uint8_t charRowOffsetBits = r * fontWidth % 8;
-			
-			// Middle blocks
+			const uint8_t rowOffsetByte = r * fontWidth / 8;
+			const uint8_t rowOffsetBits = r * fontWidth % 8;
+
+			// Process next blocks
 			setCursorAddress(240 / 8 * y + x / 8);
 			writeStart();
 			while (*pointer) {
-				uint8_t remainingWidth = fontWidth;
+				uint8_t remainingFontWidth = fontWidth;
 				const uint8_t* charAddress = fontData + (*pointer - ' ') * fontRowBytes;
-				const uint8_t* charRowAddress = charAddress + charRowOffsetByte;
+				uint8_t byteOffset;
 
 				// TODO: use lambda to reduce program size a bit?
 
-				// Remaining bits of byte
-				if (charRowOffsetBits) {
-					const uint8_t length = 8 - charRowOffsetBits;
-					const uint8_t data = pgm_read_byte(charRowAddress) >> charRowOffsetBits;
+				// Partial first byte 
+				if (rowOffsetBits) {
+					const uint8_t data = pgm_read_byte(charAddress + rowOffsetByte) >> rowOffsetBits;
+					const uint8_t length = 8 - rowOffsetBits;
 
-					nextByte |= data << data;
-					bitsWritten += length;
-					remainingWidth -= length;
+					nextByte |= data << bitsPending;
+					bitsPending += length;
+					remainingFontWidth -= length;
 
-					if (bitsWritten >= 8) {
+					if (bitsPending >= 8) {
 						writeNextByte(nextByte);
-						bitsWritten -= 8;
-						nextByte = data >> (length - bitsWritten);
+						bitsPending -= 8;
+						nextByte = data >> (length - bitsPending);
 					}
+
+					byteOffset = 1;
+				}
+				else /* first byte is full too */ {
+					byteOffset = 0;
 				}
 
-				uint8_t byteOffset = 1;
-
 				// Full bytes
-				while (remainingWidth > 8) {
-					const uint8_t data = pgm_read_byte(charRowAddress + byteOffset);
+				while (remainingFontWidth > 8) {
+					const uint8_t data = pgm_read_byte(charAddress + rowOffsetByte + byteOffset);
 
-					nextByte |= data << bitsWritten;
-					bitsWritten += remainingWidth;
-
-					if (bitsWritten >= 8) {
-						writeNextByte(nextByte);
-						bitsWritten -= 8;
-						nextByte = data >> (remainingWidth - bitsWritten);
-					}
+					nextByte |= data << bitsPending;
+					writeNextByte(nextByte);
+					remainingFontWidth -= 8;
+					nextByte = data >> (8 - bitsPending);
 
 					byteOffset += 1;
 				}
 
 				// Last bits
 				{
-					const uint8_t data = pgm_read_byte(charRowAddress + byteOffset) & ~(0b11111111 << remainingWidth);
+					const uint8_t data = pgm_read_byte(charAddress + rowOffsetByte + byteOffset) 
+						& ~(static_cast<uint8_t>(0b11111111) << remainingFontWidth);
 
-					nextByte |= data << bitsWritten;
-					bitsWritten += remainingWidth;
+					nextByte |= data << bitsPending;
+					bitsPending += remainingFontWidth;
 
-					if (bitsWritten >= 8) {
+					if (bitsPending >= 8) {
 						writeNextByte(nextByte);
-						bitsWritten -= 8;
-						nextByte = data >> (remainingWidth - bitsWritten);
+						bitsPending -= 8;
+						nextByte = data >> (remainingFontWidth - bitsPending);
 					}
 				}
 
 				pointer += 1;
 			}
 
-			// Last block
-			if (bitsWritten > 0) {
-				nextByte |= (readSingleByte() & (0b11111111 << bitsWritten));
-				setCursorAddress(240 / 8 * y + x / 8 + (static_cast<size_t>(pointer - string) * fontWidth + bitsOffset) / 8);
+			// Write last block, with background, if not aligned end
+			if (bitsPending > 0) {
+				nextByte |= readSingleByte() & (0b11111111 << bitsPending);
+				const uint8_t widthTotal = static_cast<size_t>(pointer - string) * fontWidth + bitsOffset;
+				setCursorAddress(240 / 8 * y + x / 8 + widthTotal / 8);
 				writeStart();
 				writeNextByte(nextByte);
 			}
