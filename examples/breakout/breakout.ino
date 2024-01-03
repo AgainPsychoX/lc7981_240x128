@@ -33,6 +33,7 @@ constexpr uint8_t displayHeight = 128;
 void(* crash) (void) = 0;
 
 #define DEBUG_BRICK_HITS
+#define BRICK_HP_LEVELS 2
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utils methods
@@ -129,23 +130,44 @@ struct BrickHandle
 
 constexpr BrickHandle const BrickHandle::invalid { static_cast<uint8_t>(-1) };
 
+const uint8_t PROGMEM pattern_brick_hp_1[] = {
+	0b11,
+	0b00010001,
+	0b10101010,
+	0b01000100,
+	0b10101010,
+};
+
 void drawBrick(BrickType type, uint8_t x, uint8_t y)
 {
 	switch (type) {
 		case BRICK_NONE:
 			display.drawWhiteFill(x, y, brickWidth, brickHeight);
 			break;
+#if BRICK_HP_LEVELS == 1 // only black
 		case BRICK_HP_1:
-			// TODO: draw pattern from bitmap?
+			display.drawBlackFill(x, y, brickWidth, brickHeight);
+			break;
+#endif
+#if BRICK_HP_LEVELS == 2 // black then gray
+		case BRICK_HP_1:
 			display.drawGrayFill(x, y, brickWidth, brickHeight);
 			break;
 		case BRICK_HP_2:
-			// TODO: draw pattern from bitmap?
+			display.drawBlackFill(x, y, brickWidth, brickHeight);
+			break;
+#endif
+#if BRICK_HP_LEVELS == 3 // black, normal gray and very light gray
+		case BRICK_HP_1:
+			display.drawPatternFill(x, y, brickWidth, brickHeight, pattern_brick_hp_1);
+			break;
+		case BRICK_HP_2:
 			display.drawGrayFill(x, y, brickWidth, brickHeight);
 			break;
 		case BRICK_HP_3:
 			display.drawBlackFill(x, y, brickWidth, brickHeight);
 			break;
+#endif
 		case BRICK_INDESTRUCTIBLE:
 			display.drawWhiteRectangle(x, y, brickWidth, brickHeight);
 			// drawBlackFill(x + 1, y + 1, brickWidth - 2, brickHeight - 2);
@@ -166,7 +188,15 @@ void resetAllBricks()
 	for (uint8_t gy = 0; gy < bricksCountY; gy++) {
 		for (uint8_t gx = 0; gx < bricksCountX; gx++) {
 			auto handle = BrickHandle::onGrid(gx, gy);
+#if BRICK_HP_LEVELS == 1
+			handle.setType(BRICK_HP_1);
+#endif
+#if BRICK_HP_LEVELS == 2
+			handle.setType(BRICK_HP_2);
+#endif
+#if BRICK_HP_LEVELS == 3
 			handle.setType(BRICK_HP_3);
+#endif
 			drawBrick(handle);
 		}
 	}
