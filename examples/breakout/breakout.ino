@@ -369,7 +369,6 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 	if (aHit) {
 		a.hit();
 		drawBrick(a);
-		Serial.println();
 		if (a == b) bHit = false;
 		if (a == c) cHit = false;
 		if (a == d) dHit = false;
@@ -421,8 +420,20 @@ void updateBall(uint32_t deltaTime)
 	else if (ballY >= lowestPaddleHitBallCenterX) {
 		if (paddleX <= ballX && ballX <= paddleX + paddleWidth) {
 			ballY = -ballY + static_cast<float>(lowestPaddleHitBallCenterX) * 2; // cast required, overflows uint8_t
-			ballVelocityY *= -1;
-			// TODO: change velocity based on point on paddle
+#ifdef DEBUG_PADDLE_HITS
+			Serial.println("--- Paddle hit:");
+			Serial.print("enter bVx: "); Serial.print(ballVelocityX); Serial.print("\tbVy: "); Serial.println(ballVelocityY);
+#endif
+			float hitFactor = (ballX - paddleX - paddleWidth / 2) / (paddleWidth / 2);
+			float angle = hitFactor * (67.0 * DEG_TO_RAD);
+			float speed = sqrtf(ballVelocityX * ballVelocityX + ballVelocityY * ballVelocityY);
+			ballVelocityX = speed * sinf(angle);
+			ballVelocityY = -speed * cosf(angle);
+#ifdef DEBUG_PADDLE_HITS
+			Serial.print(F("hitFactor: ")); Serial.println(hitFactor);
+			Serial.print(F("speed: ")); Serial.println(speed);
+#endif
+			Serial.print("exit  bVx: "); Serial.print(ballVelocityX); Serial.print("\tbVy: "); Serial.println(ballVelocityY);
 		}
 		else if (ballY >= displayHeight) {
 			Serial.println(F("game over"));
@@ -505,18 +516,22 @@ void loop()
 		automaticPaddle = false;
 	}
 	if (automaticPaddle) {
-		paddleXChange = (paddleX + paddleWidth / 2) - ballX > 0 ? -1 : 1;
+		uint8_t paddleCenterX = paddleX + paddleWidth / 2;
+		int16_t diff = ballX - static_cast<int16_t>(paddleCenterX);
+		if (abs(diff) > paddleWidth / 4) {
+			paddleXChange = sgn(diff);
+		}
 	}
 	updatePaddle(paddleXChange, 0);
 
 	// Speed up button for testing
 	if (digitalRead(BUTTON_A) == LOW) {
-		ballVelocityX *= 1.01;
-		ballVelocityY *= 1.01;
+		ballVelocityX *= 1.001;
+		ballVelocityY *= 1.001;
 	}
 	if (digitalRead(BUTTON_B) == LOW) {
-		ballVelocityX /= 1.01;
-		ballVelocityY /= 1.01;
+		if (ballVelocityX != 0) ballVelocityX /= 1.001;
+		if (ballVelocityY != 0) ballVelocityY /= 1.001;
 	}
 
 	uint32_t now = millis();
