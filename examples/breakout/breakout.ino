@@ -257,6 +257,16 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 		hasX1 = bx1 < brickWidth;
 	}
 
+	bool hasX2 = ballCenterX < (lastPossibleBrickX - ballCollisionBoxRadius);
+	if (hasX2) {
+		uint8_t sx2 = ballCenterX - bricksGridStartX + ballCollisionBoxRadius;
+		gx2 = sx2 / (brickWidth + bricksGridGapX);
+		bx2 = sx2 % (brickWidth + bricksGridGapX);
+		hasX2 = bx2 < brickWidth;
+	}
+
+	if (!hasX1 && !hasX2) return;
+
 	constexpr uint8_t topOffset = ballCollisionBoxRadius + bricksGridStartY;
 	bool hasY1 = ballCenterY >= topOffset && ballCenterY <= (lastPossibleBrickY + ballCollisionBoxRadius);
 	if (hasY1) {
@@ -266,14 +276,6 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 		hasY1 = by1 < brickHeight;
 	}
 
-	bool hasX2 = ballCenterX < (lastPossibleBrickX - ballCollisionBoxRadius);
-	if (hasX2) {
-		uint8_t sx2 = ballCenterX - bricksGridStartX + ballCollisionBoxRadius;
-		gx2 = sx2 / (brickWidth + bricksGridGapX);
-		bx2 = sx2 % (brickWidth + bricksGridGapX);
-		hasX2 = bx2 < brickWidth;
-	}
-
 	bool hasY2 = ballCenterY < (lastPossibleBrickY - ballCollisionBoxRadius);
 	if (hasY2) {
 		uint8_t sy2 = ballCenterY - bricksGridStartY + ballCollisionBoxRadius;
@@ -281,6 +283,8 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 		by2 = sy2 % (brickHeight + bricksGridGapY);
 		hasY2 = by2 < brickHeight;
 	}
+
+	if (!hasY1 && !hasY2) return;
 
 	BrickHandle a = hasX1 && hasY1 ? BrickHandle::onGrid(gx1, gy1) : BrickHandle::invalid;
 	BrickHandle b = hasX2 && hasY1 ? BrickHandle::onGrid(gx2, gy1) : BrickHandle::invalid;
@@ -311,9 +315,12 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 	////////////////////////////////////////
 	// Change ball velocity
 
-	// TODO: special logic for (rare) triple-hit?
+	// TODO: fix corners bounce based on position in the brick
+	// TODO: use union/binary operators (instead single boolean logic)?
 
-	/**/ if (aHit && bHit) ballVelocityY *= -1;
+	/**/ if (aHit && dHit) goto corner_swap_velocity;
+	else if (bHit && cHit) goto corner_negate_and_swap_velocity;
+	else if (aHit && bHit) ballVelocityY *= -1;
 	else if (aHit && cHit) ballVelocityX *= -1;
 	else if (bHit && dHit) ballVelocityX *= -1;
 	else if (cHit && dHit) ballVelocityY *= -1;
@@ -382,9 +389,6 @@ void updateBallAgainstBricks(uint8_t ballCenterX, uint8_t ballCenterY)
 		d.hit();
 		drawBrick(d);
 	}
-
-	// TODO: fix corners bounce based on position in the brick
-	// TODO: use union/binary operators (instead single boolean logic)?
 }
 
 void updateBall(uint32_t deltaTime)
