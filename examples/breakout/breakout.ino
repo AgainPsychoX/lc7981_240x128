@@ -200,6 +200,20 @@ void resetAllBricks()
 			drawBrick(handle);
 		}
 	}
+	// TODO: more interesting layout, use indestructible blocks too
+}
+
+bool checkGameFinished()
+{
+	for (uint8_t gy = 0; gy < bricksCountY; gy++) {
+		for (uint8_t gx = 0; gx < bricksCountX; gx++) {
+			auto handle = BrickHandle::onGrid(gx, gy);
+			if (handle.isSolid() && handle.getType() != BRICK_INDESTRUCTIBLE) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +225,8 @@ float ballX;
 float ballY;
 float ballVelocityX; // dots per ms
 float ballVelocityY; // dots per ms
+
+// TODO: more balls
 
 void drawHorizontalLineSafely(int16_t x, int16_t y, uint8_t length, uint8_t color)
 {
@@ -453,11 +469,23 @@ void updateBall(uint32_t deltaTime)
 		crash();
 	}
 	updateBallAgainstBricks(nextBallScreenX, nextBallScreenY);
+	if (checkGameFinished()) {
+		Serial.println(F("you won"));
+		display.clearGray();
+		display.drawTextVertical(16, 16, "You won!", font_12x16_Terminal_Microsoft);
+		delay(3000);
+		reset();
+		return;
+	}
+	// TODO: detect end of the game (no non-indestructible bricks)
 	if (needRedraw) {
 		drawBall(nextBallScreenX, nextBallScreenY, 0xFF);
 	}
 	// TODO: smooth it by re-drawing only the changed part of the ball
-} 
+}
+
+// TODO: bricks having chance (or special brick type) to drop upgrades/traps,
+//  like paddle width/speed, ball speed, extra balls, extra lives etc.
 
 ////////////////////////////////////////////////////////////////////////////////
 // Setup & game logic loop
