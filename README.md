@@ -11,6 +11,20 @@ Library aim to allow easy and efficient control over LC7981-based EW24D40 (or si
 
 * [EW24D40 monochromatic display module (240x128) using LC7981 controller PDF](http://www.mstlcd.co.kr/s_source/download.php?table=es_free4&filename=EW24D40.pdf)
 
+###### Few photos for identification and inspiration (my board running Breakout example)
+
+<table>
+	<tbody>
+		<tr>
+			<td colspan=2 rowspan=2><img src="./examples/breakout/images/IMG_20240103_182655.jpg" width="720" /></td>
+			<td><img src="./examples/breakout/images/IMG_20240104_015350.jpg" width="320" /></td>
+		</tr>
+		<tr>
+			<td><img src="./examples/breakout/images/IMG_20240104_015312.jpg" width="320" /></td>
+		</tr>
+	</tbody>
+</table>
+
 
 
 ## Notes
@@ -42,21 +56,21 @@ If you are using only one display, chip select pin can be usually connected to g
 ## Features
 
 + graphical mode
-    + moving cursor
-    + fast bulk (blocks) writing/reading,
-    + single bit setting/clearing,
-    + drawing lines and basic figures,
-    + simple patterns fill drawing,
-    + drawing vertical text with few fonts (converter script included),
+	+ moving cursor
+	+ fast bulk (blocks) writing/reading,
+	+ single bit setting/clearing,
+	+ drawing lines and basic figures,
+	+ simple patterns fill drawing,
+	+ drawing vertical text with few fonts (converter script included),
 
 Todo:
 
 - fix problem with reading from the controller when using fast I/O example (my board specific)
 - character mode
 - graphical mode
-    - drawing fonts (font converter with few example fonts included),
-    - horizontal font drawing,
-    - graphics bitmap drawing,
+	- drawing fonts (font converter with few example fonts included),
+	- horizontal font drawing,
+	- graphics bitmap drawing,
 - minimalistic example,
 - link to where buy the display,
 - image of real life connections for main example,
@@ -69,12 +83,30 @@ Todo:
 
 ## Example
 
-Full example is included under [`example/`](example/) folder. It allow connect to Arduino via Serial port in order to send commands to draw on the display.
+Examples are included under [`examples/`](examples/) folder:
+
+* [`examples/testing/`](examples/testing/) - connect to Arduino via Serial port in order to send commands to draw on the display.
+* [`examples/breakout/`](examples/breakout/) - Atari Breakout inspired game using the library.
 
 Below there is minimalistic example of setup and usage:
 
 ```cpp
-// TODO
+// Prepare display object using `DisplayByPins` (compile-time pin definition)
+LC7981::DisplayByPins<
+	// EN / CS / DI / RW
+	22,  23,  20,  21,
+	// DB0 to DB7
+	10, 11, 12, 13, 14, 15, 18, 19
+> display;
+
+void setup() {
+	// Initialize the display into graphic mode
+	display.initGraphicMode();
+
+	// Your code to draw stuff
+	display.clearWhite();
+	display.drawBlackLine(0, 0, 239, 127);
+}
 ```
 
 
